@@ -47,10 +47,12 @@ h1{font-size:1.25rem;margin:0}
   var tg = window.Telegram && window.Telegram.WebApp;
   try { if (tg) { tg.ready(); tg.expand(); } } catch (e) {}
   // Enlace: #v1;AAAA-MM-DD(lunes de la primera semana);km,km,...(un valor por día, vacío = sin cierre);nombre
-  var p = decodeURIComponent(location.hash.slice(1)).split(";");
+  // Telegram añade sus propios datos detrás (?tgWebAppData=… / &tgWebAppVersion=…): se cortan antes de leer
+  var crudo = location.hash.slice(1).split(/[?&]tgWebApp/)[0].split(/[?&]/)[0];
+  var p; try { p = decodeURIComponent(crudo).split(";"); } catch (e) { p = crudo.split(";"); }
   var lunes0 = p[1] ? new Date(p[1] + "T12:00:00") : null;
   var km = (p[2] || "").split(",").map(function(x){ return x === "" ? null : parseFloat(x); });
-  if (p[3]) document.getElementById("quien").textContent = p[3] + " · turno de día";
+  if (/^[\wÀ-ÿ ]{1,30}$/.test(p[3] || "")) document.getElementById("quien").textContent = p[3] + " · turno de día";
   var semanas = Math.max(1, Math.ceil(km.length / 7));
   var s = semanas - 1;
   var fmt = function(n){ return n.toLocaleString("es-ES", {minimumFractionDigits:1, maximumFractionDigits:1}); };
