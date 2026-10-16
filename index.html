@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Km por día · Taxi 9223</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+/* La página no lleva datos: los km llegan en el enlace (#...) que pone el bot y no se guardan en ningún sitio. */
+:root{--bg:#ffffff;--fg:#1d2126;--muted:#6b7178;--line:#e3e5e8;--bar:#d9a400;--empty:#e9ebee;--btn:#2f8fd0;--btn-fg:#ffffff;--card:#f3f4f6}
+@media (prefers-color-scheme: dark){:root{--bg:#17212b;--fg:#f1f3f5;--muted:#9aa4ae;--line:#2b3946;--bar:#f2c230;--empty:#24313d;--btn:#5fb0e8;--btn-fg:#0d1720;--card:#1f2b36;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif}
+main{max-width:34rem;margin:0 auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:16px}
+h1{font-size:1.25rem;margin:0}
+.sub{color:var(--muted);font-size:.9rem;margin:0}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.nav button{background:var(--card);color:var(--fg);border:0;border-radius:10px;padding:8px 12px;font-size:.95rem}
+.nav button:disabled{opacity:.35}
+.nav b{font-size:1rem;text-align:center}
+.chart{display:flex;align-items:flex-end;gap:8px;height:220px;border-bottom:1px solid var(--line);padding-top:22px}
+.col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;min-width:0}
+.col span{font-size:.75rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.col div{width:100%;max-width:44px;background:var(--bar);border-radius:6px 6px 0 0}
+.col.no div{background:var(--empty);height:6px!important}
+.col.no span{color:var(--muted)}
+.days{display:flex;gap:8px;margin-top:-8px}
+.days span{flex:1;text-align:center;font-size:.78rem;color:var(--muted)}
+.tot{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tot div{background:var(--card);border-radius:12px;padding:10px 12px}
+.tot small{display:block;color:var(--muted);font-size:.75rem}
+.tot strong{font-size:1.15rem;font-variant-numeric:tabular-nums}
+.vacio{color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+  <div><h1>🚕 Km por día</h1><p class="sub" id="quien">Taxi 9223 · turno de día</p></div>
+  <div class="nav"><button id="ant" type="button">‹ Anterior</button><b id="semana"></b><button id="sig" type="button">Siguiente ›</button></div>
+  <div class="chart" id="chart"></div>
+  <div class="days"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+  <div class="tot"><div><small>Km de la semana</small><strong id="total">–</strong></div><div><small>Media por día trabajado</small><strong id="media">–</strong></div></div>
+  <p class="sub">Los km son los del taxímetro de cada cierre apuntado. Un día en gris es un día sin cierre.</p>
+</main>
+<script>
+(function(){
+  var tg = window.Telegram && window.Telegram.WebApp;
+  try { if (tg) { tg.ready(); tg.expand(); } } catch (e) {}
+  // Enlace: #v1;AAAA-MM-DD(lunes de la primera semana);km,km,...(un valor por día, vacío = sin cierre);nombre
+  var p = decodeURIComponent(location.hash.slice(1)).split(";");
+  var lunes0 = p[1] ? new Date(p[1] + "T12:00:00") : null;
+  var km = (p[2] || "").split(",").map(function(x){ return x === "" ? null : parseFloat(x); });
+  if (p[3]) document.getElementById("quien").textContent = p[3] + " · turno de día";
+  var semanas = Math.max(1, Math.ceil(km.length / 7));
+  var s = semanas - 1;
+  var fmt = function(n){ return n.toLocaleString("es-ES", {minimumFractionDigits:1, maximumFractionDigits:1}); };
+  var dm = function(d){ return d.getDate() + "/" + (d.getMonth() + 1); };
+  function pinta(){
+    var chart = document.getElementById("chart");
+    chart.innerHTML = "";
+    if (!lunes0) { chart.innerHTML = '<p class="vacio">No hay datos en este enlace. Ábrelo desde el botón del bot.</p>'; return; }
+    var ini = new Date(lunes0); ini.setDate(ini.getDate() + 7 * s);
+    var fin = new Date(ini); fin.setDate(fin.getDate() + 6);
+    document.getElementById("semana").textContent = "Semana del " + dm(ini) + " al " + dm(fin);
+    var dias = km.slice(7 * s, 7 * s + 7);
+    while (dias.length < 7) dias.push(null);
+    var max = Math.max.apply(null, dias.map(function(x){ return x || 0; }).concat([50]));
+    var tot = 0, n = 0;
+    dias.forEach(function(v){
+      var c = document.createElement("div"); c.className = "col" + (v === null ? " no" : "");
+      var t = document.createElement("span"); t.textContent = v === null ? "–" : fmt(v);
+      var b = document.createElement("div"); b.style.height = (v === null ? 0 : Math.max(2, 100 * v / max)) + "%";
+      c.appendChild(t); c.appendChild(b); chart.appendChild(c);
+      if (v !== null) { tot += v; n++; }
+    });
+    document.getElementById("total").textContent = n ? fmt(tot) + " km" : "–";
+    document.getElementById("media").textContent = n ? fmt(tot / n) + " km" : "–";
+    document.getElementById("ant").disabled = s === 0;
+    document.getElementById("sig").disabled = s === semanas - 1;
+  }
+  document.getElementById("ant").onclick = function(){ if (s > 0) { s--; pinta(); } };
+  document.getElementById("sig").onclick = function(){ if (s < semanas - 1) { s++; pinta(); } };
+  pinta();
+})();
+</script>
+</body>
+</html>
