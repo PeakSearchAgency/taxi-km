@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mis cierres · Taxi 9223</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+/* Panel de Bilal (D047). La página no lleva datos: las semanas liquidadas llegan en el enlace (#b1;…) que pone el bot
+   y no se guardan en ningún sitio. Solo semanas cerradas y liquidadas. Tema oscuro de la guía del propietario. */
+:root{color-scheme:dark;--bg:#0d1117;--card:#161b22;--inner:#1c2129;--line:#2a313b;--fg:#e6edf3;--muted:#8b949e;--soft:#b8c2cc;
+  --green:#3fb950;--day:#e3b341}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Helvetica Neue",system-ui,sans-serif}
+main{max-width:30rem;margin:0 auto;padding:14px max(14px,env(safe-area-inset-left,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px}
+.wk{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.wk b{font-size:1.05rem;font-variant-numeric:tabular-nums}
+.nav{display:flex;align-items:center;gap:6px}
+.nav button{background:var(--inner);color:var(--fg);border:1px solid var(--line);border-radius:9px;width:34px;height:32px;font-size:1.05rem}
+.nav button:disabled{opacity:.3}
+.pill{font-size:.68rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:7px;padding:2px 8px;white-space:nowrap;
+  background:rgba(63,185,80,.16);color:var(--green);border:1px solid rgba(63,185,80,.4)}
+.valid{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.8rem;color:var(--soft)}
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.chip{border-radius:8px;padding:5px 0;text-align:center;font-size:.72rem;background:var(--inner);color:var(--muted);border:1px solid var(--line);display:flex;flex-direction:column}
+.chip b{font-size:.86rem;color:var(--fg)}
+.chip.w{border-color:rgba(63,185,80,.55)}
+.chip.w b{color:var(--green)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 11px;display:flex;flex-direction:column;gap:1px;min-width:0}
+.tile strong{font-size:1.15rem;font-variant-numeric:tabular-nums}
+.tile small{color:var(--muted);font-size:.74rem}
+.tile.big{grid-column:1/-1;flex-direction:row;justify-content:space-between;align-items:center}
+.tile.big strong{font-size:1.45rem;color:var(--green)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.card h2{margin:0;font-size:.84rem;color:var(--soft);font-weight:600}
+.bars{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;height:128px;align-items:end;border-bottom:1px solid var(--line)}
+.bar{display:flex;flex-direction:column-reverse;height:100%;min-width:0}
+.bar i{display:block;border-radius:3px 3px 0 0;background:var(--day)}
+.bar i.off{background:var(--line);height:3px}
+.bar small{display:block;font-size:.6rem;color:var(--soft);text-align:center;font-variant-numeric:tabular-nums;padding-bottom:2px;white-space:nowrap}
+.days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;font-size:.68rem;color:var(--muted);text-align:center}
+details{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+summary{list-style:none;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 12px;cursor:pointer}
+summary::-webkit-details-marker{display:none}
+summary:focus-visible{outline:2px solid var(--day);outline-offset:-2px}
+.num{width:28px;height:28px;border-radius:50%;background:var(--inner);border:1px solid var(--line);display:grid;place-items:center;font-size:.74rem;font-weight:700}
+summary div{min-width:0;display:flex;flex-direction:column}
+summary div b{font-size:.9rem}
+summary div small{font-size:.76rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+summary em{font-style:normal;color:var(--muted);font-size:.8rem;transition:transform .15s}
+details[open] summary em{transform:rotate(180deg)}
+.body{background:var(--inner);border-top:1px solid var(--line);padding:4px 12px}
+.row{display:flex;justify-content:space-between;gap:10px;font-size:.86rem;padding:6px 0;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.row:last-child{border-bottom:0}
+.row span:first-child{color:var(--soft)}
+.vacio{color:var(--muted);text-align:center;padding:40px 0}
+@media (prefers-reduced-motion:reduce){summary em{transition:none}}
+</style>
+</head>
+<body>
+<main id="app"><p class="vacio">Cargando…</p></main>
+<script>
+(function(){
+  var tg = window.Telegram && window.Telegram.WebApp;
+  try { if (tg) { tg.ready(); tg.expand(); } } catch (e) {}
+  // Enlace: #b1;<datos en base64url de un JSON> — lo arma scripts/panel_bilal.py. Telegram añade sus datos detrás: se cortan.
+  // Semana: [lunes "AAAA-MM-DD", [bruto, comisiones, neto, ganancia, propinas, efectivo, restante, promedio, "calif. promedio", ratio, "calif. ratio"],
+  //          [[día 0-6 (0 = lunes), servicios, taxímetro, km, datáfono, gastos], …]]
+  var app = document.getElementById("app");
+  var crudo = location.hash.slice(1).split(/[?&]tgWebApp/)[0].split(/[?&]/)[0];
+  var semanas = [];
+  try {
+    var p = crudo.split(";");
+    if (p[0] === "b1" && p[1]) {
+      var b = p[1].replace(/-/g, "+").replace(/_/g, "/");
+      while (b.length % 4) b += "=";
+      var bin = atob(b), bytes = new Uint8Array(bin.length);
+      for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      semanas = JSON.parse(new TextDecoder().decode(bytes)).s || [];
+    }
+  } catch (e) { semanas = []; }
+  if (!semanas.length) { app.innerHTML = '<p class="vacio">No hay datos en este enlace. Ábrelo desde el botón del bot.</p>'; return; }
+
+  var DIAS = ["L", "M", "X", "J", "V", "S", "D"];
+  var NOMBRES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+  var MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic"];
+  var eur = function(n){ return n.toLocaleString("es-ES", {minimumFractionDigits:2, maximumFractionDigits:2}) + " €"; };
+  var num = function(n, d){ return n.toLocaleString("es-ES", {minimumFractionDigits:d, maximumFractionDigits:d}); };
+  var esc = function(t){ return String(t).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); };
+  var fecha = function(lunes, k){ var d = new Date(lunes + "T12:00:00"); d.setDate(d.getDate() + k); return d; };
+  var calif = function(t){ t = String(t || "").trim(); return /brutal/i.test(t) ? "¡brutal!" : t.toLowerCase(); };
+  var s = semanas.length - 1;
+
+  function pinta(){
+    var w = semanas[s], lunes = w[0], L = w[1], dias = w[2] || [];
+    var ini = fecha(lunes, 0), fin = fecha(lunes, 6);
+    var rango = ini.getMonth() === fin.getMonth()
+      ? ini.getDate() + " – " + fin.getDate() + " " + MESES[fin.getMonth()]
+      : ini.getDate() + " " + MESES[ini.getMonth()] + " – " + fin.getDate() + " " + MESES[fin.getMonth()];
+    var por = {}; dias.forEach(function(d){ por[d[0]] = d; });
+    var tax = dias.reduce(function(a, d){ return a + d[2]; }, 0);
+    var max = Math.max.apply(null, dias.map(function(d){ return d[2]; }).concat([1]));
+    var h = "";
+    h += '<div class="wk"><div class="nav"><button id="ant" type="button" aria-label="Semana anterior">‹</button><b>' + rango + '</b><button id="sig" type="button" aria-label="Semana siguiente">›</button></div>'
+       + '<span class="pill">' + dias.length + ' de ' + dias.length + ' cierres</span></div>';
+    h += '<div class="valid"><span class="pill">Uber ✓</span><span class="pill">FreeNow ✓</span><span>validados con tus cierres</span></div>';
+    h += '<div class="strip">' + DIAS.map(function(x, k){
+      return '<div class="chip' + (por[k] ? " w" : "") + '">' + x + '<b>' + fecha(lunes, k).getDate() + '</b></div>'; }).join("") + '</div>';
+    h += '<div class="tiles">'
+       + '<div class="tile big"><small>Restante a ingresarte</small><strong>' + eur(L[6]) + '</strong></div>'
+       + '<div class="tile"><strong>' + eur(L[3]) + '</strong><small>Tu ganancia</small></div>'
+       + '<div class="tile"><strong>' + eur(L[4]) + '</strong><small>Propinas</small></div>'
+       + '<div class="tile"><strong>' + eur(tax) + '</strong><small>Taxímetro</small></div>'
+       + '<div class="tile"><strong>' + num(L[9], 2) + ' €/km</strong><small>Ratio · ' + esc(calif(L[10])) + '</small></div></div>';
+    h += '<div class="card"><h2>Tus días · facturado en el taxímetro</h2><div class="bars">' + DIAS.map(function(x, k){
+      var d = por[k];
+      return d ? '<div class="bar"><i style="height:' + Math.max(3, 78 * d[2] / max) + '%"></i><small>' + num(d[2], 2) + '</small></div>'
+               : '<div class="bar"><i class="off"></i></div>'; }).join("")
+       + '</div><div class="days">' + DIAS.map(function(x){ return "<span>" + x + "</span>"; }).join("") + '</div></div>';
+    var fila = function(a, b){ return '<div class="row"><span>' + a + '</span><span>' + b + '</span></div>'; };
+    h += '<details open><summary><span class="num">€</span><div><b>Liquidación: ' + eur(L[6]) + '</b><small>Restante a ingresarte</small></div><em>▾</em></summary><div class="body">'
+       + fila("Total bruto facturado", eur(L[0])) + fila("Comisiones de las apps", eur(L[1])) + fila("Total neto facturado", eur(L[2]))
+       + fila("Tu ganancia", eur(L[3])) + fila("Propinas", eur(L[4]) + " (total " + eur(L[3] + L[4]) + ")")
+       + fila("Efectivo que tienes", eur(L[5])) + fila("Promedio neto al día", eur(L[7]) + " · " + esc(calif(L[8])))
+       + '<div class="row"><span><b>Restante a ingresarte</b></span><b>' + eur(L[6]) + '</b></div></div></details>';
+    dias.forEach(function(d){
+      var f = fecha(lunes, d[0]);
+      h += '<details><summary><span class="num">' + DIAS[d[0]] + '</span><div><b>' + NOMBRES[d[0]] + ' ' + f.getDate() + '</b><small>'
+         + d[1] + ' serv · ' + eur(d[2]) + ' · ' + num(d[3], 1) + ' km</small></div><em>▾</em></summary><div class="body">'
+         + fila("Servicios", d[1]) + fila("Taxímetro", eur(d[2])) + fila("Kilómetros", num(d[3], 1) + " km")
+         + fila("Datáfono", eur(d[4])) + fila("Gastos", eur(d[5])) + '</div></details>';
+    });
+    app.innerHTML = h;
+    var ant = document.getElementById("ant"), sig = document.getElementById("sig");
+    ant.disabled = s === 0; sig.disabled = s === semanas.length - 1;
+    ant.onclick = function(){ if (s > 0) { s--; pinta(); } };
+    sig.onclick = function(){ if (s < semanas.length - 1) { s++; pinta(); } };
+  }
+  pinta();
+})();
+</script>
+</body>
+</html>
